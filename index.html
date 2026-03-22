@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PricePulse | Compare Indian e-commerce prices</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #081120;
+      --panel: rgba(12, 20, 35, 0.82);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text: #eef3ff;
+      --muted: #a7b5d1;
+      --accent: #72e5ff;
+      --accent-2: #9e7bff;
+      --success: #39d98a;
+      --warning: #ffce73;
+      --danger: #ff7f94;
+      --card-shadow: 0 18px 60px rgba(0, 0, 0, 0.34);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(114, 229, 255, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(158, 123, 255, 0.18), transparent 25%),
+        linear-gradient(180deg, #060d18 0%, #091525 48%, #07101c 100%);
+    }
+
+    .page-shell {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ambient-glow,
+    .ambient-glow::before,
+    .ambient-glow::after {
+      position: absolute;
+      inset: auto;
+      border-radius: 50%;
+      filter: blur(10px);
+      pointer-events: none;
+      content: "";
+    }
+
+    .ambient-glow {
+      width: 22rem;
+      height: 22rem;
+      top: 4rem;
+      right: -4rem;
+      background: rgba(114, 229, 255, 0.08);
+    }
+
+    .ambient-glow::before {
+      width: 18rem;
+      height: 18rem;
+      top: 22rem;
+      left: -76vw;
+      background: rgba(158, 123, 255, 0.08);
+    }
+
+    .ambient-glow::after {
+      width: 12rem;
+      height: 12rem;
+      top: 40rem;
+      left: -20vw;
+      background: rgba(57, 217, 138, 0.08);
+    }
+
+    .hero-badge,
+    .surface-card,
+    .glass-pill,
+    .result-card,
+    .search-card,
+    .stats-card,
+    .notice-card,
+    .sample-chip {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--card-shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .hero-section {
+      padding: 4rem 0 2rem;
+    }
+
+    .hero-title {
+      font-size: clamp(2.4rem, 4vw, 4.6rem);
+      font-weight: 800;
+      letter-spacing: -0.06em;
+      line-height: 0.96;
+      margin-bottom: 1rem;
+    }
+
+    .gradient-text {
+      background: linear-gradient(90deg, var(--accent), #b4f5ff 35%, #cab8ff 80%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-copy {
+      color: var(--muted);
+      max-width: 44rem;
+      font-size: 1.04rem;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      border-radius: 999px;
+      padding: 0.65rem 1rem;
+      margin-bottom: 1.25rem;
+      color: #d9e9ff;
+      font-size: 0.9rem;
+    }
+
+    .hero-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      margin-top: 2rem;
+    }
+
+    .stats-card {
+      border-radius: 1.4rem;
+      padding: 1.25rem;
+    }
+
+    .stats-label {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .stats-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+    }
+
+    .search-card {
+      border-radius: 1.8rem;
+      padding: 1rem;
+      margin-top: -1rem;
+      position: sticky;
+      top: 1rem;
+      z-index: 10;
+    }
+
+    .search-label {
+      color: var(--muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+
+    .search-control,
+    .sort-control {
+      border-radius: 1rem;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      min-height: 56px;
+    }
+
+    .search-control::placeholder { color: rgba(255,255,255,0.45); }
+    .search-control:focus,
+    .sort-control:focus {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(114, 229, 255, 0.5);
+      box-shadow: 0 0 0 0.2rem rgba(114, 229, 255, 0.15);
+      color: var(--text);
+    }
+
+    .search-btn {
+      border-radius: 1rem;
+      min-height: 56px;
+      border: none;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      color: #07111e;
+    }
+
+    .search-btn:hover { filter: brightness(1.06); }
+
+    .samples-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      margin-top: 1rem;
+    }
+
+    .sample-chip {
+      border-radius: 999px;
+      padding: 0.6rem 0.95rem;
+      color: #d6e5ff;
+      text-decoration: none;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      font-size: 0.92rem;
+    }
+
+    .sample-chip:hover {
+      transform: translateY(-2px);
+      border-color: rgba(114, 229, 255, 0.5);
+      color: white;
+    }
+
+    .surface-card {
+      border-radius: 1.8rem;
+      padding: 1.3rem;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+    }
+
+    .section-copy { color: var(--muted); }
+
+    .feature-list {
+      display: grid;
+      gap: 0.9rem;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .feature-item {
+      display: flex;
+      gap: 0.8rem;
+      align-items: flex-start;
+      color: #d9e9ff;
+    }
+
+    .feature-icon,
+    .mini-icon {
+      width: 2.2rem;
+      height: 2.2rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.9rem;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .results-meta {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .notice-list {
+      display: grid;
+      gap: 0.7rem;
+      margin-bottom: 1.4rem;
+    }
+
+    .notice-card {
+      border-radius: 1rem;
+      padding: 0.85rem 1rem;
+      color: #dce8ff;
+      font-size: 0.95rem;
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.15rem;
+    }
+
+    .result-card {
+      border-radius: 1.6rem;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      min-height: 100%;
+    }
+
+    .result-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(114, 229, 255, 0.45);
+    }
+
+    .product-thumb {
+      aspect-ratio: 16 / 10;
+      width: 100%;
+      object-fit: cover;
+      background: rgba(255,255,255,0.06);
+    }
+
+    .result-body {
+      padding: 1.1rem;
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      gap: 0.95rem;
+    }
+
+    .platform-row,
+    .price-row,
+    .meta-grid,
+    .rating-row,
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    .platform-pill,
+    .badge-pill,
+    .stock-pill,
+    .source-pill,
+    .price-chip,
+    .glass-pill {
+      border-radius: 999px;
+      padding: 0.45rem 0.8rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #eff5ff;
+      font-size: 0.8rem;
+    }
+
+    .badge-pill.lowest { background: rgba(57, 217, 138, 0.18); color: #9affc7; }
+    .badge-pill.live { background: rgba(114, 229, 255, 0.16); color: #aaf6ff; }
+    .badge-pill.other { background: rgba(255, 206, 115, 0.16); color: #ffe1a4; }
+    .stock-pill.in { background: rgba(57, 217, 138, 0.15); color: #91f7c0; }
+    .stock-pill.out { background: rgba(255, 127, 148, 0.16); color: #ffb4c1; }
+    .source-pill.mock { color: #cab8ff; }
+    .source-pill.scraped { color: #b9f9ff; }
+
+    .platform-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 0.2rem;
+    }
+
+    .domain-copy,
+    .review-list,
+    .muted-copy,
+    .footer-note {
+      color: var(--muted);
+    }
+
+    .price-hero {
+      font-size: 1.75rem;
+      font-weight: 800;
+    }
+
+    .price-strike {
+      color: rgba(255,255,255,0.45);
+      text-decoration: line-through;
+      font-size: 0.95rem;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.75rem;
+    }
+
+    .meta-cell {
+      background: rgba(255,255,255,0.04);
+      border-radius: 1rem;
+      padding: 0.85rem;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    .meta-cell span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      margin-bottom: 0.2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .review-list {
+      padding-left: 1.1rem;
+      margin: 0;
+      display: grid;
+      gap: 0.4rem;
+      font-size: 0.92rem;
+    }
+
+    .buy-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      width: 100%;
+      min-height: 48px;
+      border-radius: 1rem;
+      text-decoration: none;
+      font-weight: 700;
+      background: linear-gradient(90deg, rgba(114,229,255,0.95), rgba(158,123,255,0.95));
+      color: #04111d;
+    }
+
+    .buy-btn:hover { color: #04111d; filter: brightness(1.04); }
+
+    .empty-state,
+    .loading-state,
+    .error-state {
+      border-radius: 1.8rem;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .loading-dots {
+      display: inline-flex;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+
+    .loading-dots span {
+      width: 0.7rem;
+      height: 0.7rem;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      animation: bounce 1.1s infinite ease-in-out;
+    }
+
+    .loading-dots span:nth-child(2) { animation-delay: 0.15s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: translateY(0); opacity: 0.55; }
+      40% { transform: translateY(-8px); opacity: 1; }
+    }
+
+    footer {
+      color: var(--muted);
+      padding: 2.2rem 0 3rem;
+    }
+
+    @media (max-width: 991.98px) {
+      .search-card {
+        position: static;
+      }
+    }
+
+    @media (max-width: 575.98px) {
+      .hero-section {
+        padding-top: 2.5rem;
+      }
+      .search-card,
+      .surface-card,
+      .stats-card,
+      .result-card,
+      .notice-card {
+        border-radius: 1.3rem;
+      }
+      .price-row,
+      .platform-row,
+      .footer-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .meta-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page-shell">
+    <div class="ambient-glow"></div>
+    <div class="container py-3 py-lg-4">
+      <section class="hero-section">
+        <div class="row g-4 align-items-center">
+          <div class="col-lg-7">
+            <div class="hero-badge">
+              <span>🇮🇳</span>
+              <span>Indian market-focused price intelligence across Amazon, Flipkart, Meesho, and Myntra.</span>
+            </div>
+            <h1 class="hero-title">Find the <span class="gradient-text">best live or offline-ready deal</span> in seconds.</h1>
+            <p class="hero-copy mb-0">
+              PricePulse compares major Indian shopping platforms, highlights discounts, surfaces top review snippets,
+              and keeps working even when live scraping is unavailable.
+            </p>
+            <div class="hero-grid">
+              <div class="stats-card">
+                <div class="stats-label">Platforms tracked</div>
+                <div class="stats-value">4+</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Mock catalog</div>
+                <div class="stats-value" id="catalog-count">50+</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Currency</div>
+                <div class="stats-value">₹ INR</div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="surface-card h-100">
+              <div class="d-flex align-items-start gap-3 mb-3">
+                <div class="feature-icon">⚡</div>
+                <div>
+                  <div class="section-title">What you get</div>
+                  <div class="section-copy">Responsive search, price sorting, buy links, review snippets, and graceful fallback to curated offline data.</div>
+                </div>
+              </div>
+              <ul class="feature-list">
+                <li class="feature-item"><span class="mini-icon">🔎</span><div><strong>Single search</strong><br><span class="section-copy">Type products like “Samsung earbuds” or “iPhone case” to compare offers instantly.</span></div></li>
+                <li class="feature-item"><span class="mini-icon">📊</span><div><strong>Lowest-price detection</strong><br><span class="section-copy">Cards are automatically sorted and flagged so the best deal stands out.</span></div></li>
+                <li class="feature-item"><span class="mini-icon">🛡️</span><div><strong>Offline ready</strong><br><span class="section-copy">When stores block scraping, PricePulse still returns realistic mock marketplace results.</span></div></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="search-card mb-4">
+        <div class="row g-3 align-items-end">
+          <div class="col-lg-7">
+            <label class="search-label" for="productInput">Search a product</label>
+            <input id="productInput" class="form-control search-control" type="text" placeholder='Try "Samsung earbuds", "iPhone 15 128GB", or "Myntra Kurta Set"' autocomplete="off">
+          </div>
+          <div class="col-sm-6 col-lg-3">
+            <label class="search-label" for="sortSelect">Sort results</label>
+            <select id="sortSelect" class="form-select sort-control">
+              <option value="price_asc">Price: Low to High</option>
+              <option value="price_desc">Price: High to Low</option>
+            </select>
+          </div>
+          <div class="col-sm-6 col-lg-2 d-grid">
+            <button id="searchButton" class="btn search-btn">Compare now</button>
+          </div>
+        </div>
+        <div class="samples-row" id="sampleQueries">
+          <button class="sample-chip border-0" data-query="Samsung earbuds">Samsung earbuds</button>
+          <button class="sample-chip border-0" data-query="iPhone case">iPhone case</button>
+          <button class="sample-chip border-0" data-query="HP Victus Gaming Laptop">HP Victus Gaming Laptop</button>
+        </div>
+      </section>
+
+      <section class="row g-4 pb-4">
+        <div class="col-lg-4">
+          <div class="surface-card h-100">
+            <div class="section-title">How PricePulse works</div>
+            <p class="section-copy">The backend first loads curated Indian-market mock data, then attempts lightweight live scraping per platform. If a marketplace rejects the request, the card gracefully falls back to offline data.</p>
+            <div class="d-grid gap-3 mt-3">
+              <div class="glass-pill d-flex align-items-start gap-3"><span>1</span><span>Search any product keyword or exact product name.</span></div>
+              <div class="glass-pill d-flex align-items-start gap-3"><span>2</span><span>PricePulse sorts, tags, and enriches offers with discounts, ratings, and reviews.</span></div>
+              <div class="glass-pill d-flex align-items-start gap-3"><span>3</span><span>Use direct purchase links to continue on Amazon.in, Flipkart, Meesho, or Myntra.</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <div class="surface-card h-100">
+            <div class="results-header">
+              <div>
+                <div class="section-title mb-1">Comparison results</div>
+                <div class="results-meta" id="resultsMeta">Run a search to compare prices across platforms.</div>
+              </div>
+              <div class="glass-pill" id="availabilityMeta">Offline-ready dataset enabled</div>
+            </div>
+            <div id="noticeList" class="notice-list d-none"></div>
+            <div id="resultsContainer">
+              <div class="empty-state surface-card border-0 shadow-none p-4">
+                <div class="feature-icon mx-auto mb-3">🛍️</div>
+                <h3 class="h4">Search a product to see the lowest deal</h3>
+                <p class="footer-note mb-0">Example products: Samsung earbuds, iPhone 15 128GB, Kindle Paperwhite, Puma Running Shoes.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        <div class="d-flex flex-column flex-md-row justify-content-between gap-2">
+          <div>PricePulse is a demo comparison app built with Flask, Bootstrap, Fetch API, and BeautifulSoup.</div>
+          <div>Tip: live prices may vary by seller and region; always verify on the destination marketplace.</div>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      lastResults: [],
+      lastProduct: '',
+      samplesLoaded: false,
+    };
+
+    const elements = {
+      productInput: document.getElementById('productInput'),
+      sortSelect: document.getElementById('sortSelect'),
+      searchButton: document.getElementById('searchButton'),
+      resultsContainer: document.getElementById('resultsContainer'),
+      resultsMeta: document.getElementById('resultsMeta'),
+      availabilityMeta: document.getElementById('availabilityMeta'),
+      sampleQueries: document.getElementById('sampleQueries'),
+      noticeList: document.getElementById('noticeList'),
+      catalogCount: document.getElementById('catalog-count'),
+    };
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+    }
+
+    function renderLoading(product) {
+      elements.resultsMeta.textContent = `Comparing deals for “${product}”...`;
+      elements.noticeList.classList.add('d-none');
+      elements.noticeList.innerHTML = '';
+      elements.resultsContainer.innerHTML = `
+        <div class="loading-state">
+          <div class="loading-dots"><span></span><span></span><span></span></div>
+          <h3 class="h4">Fetching the best offers</h3>
+          <p class="footer-note mb-0">Checking live pages first, then falling back to offline-ready marketplace data if needed.</p>
+        </div>
+      `;
+    }
+
+    function renderError(message) {
+      elements.resultsMeta.textContent = 'Unable to compare prices right now.';
+      elements.resultsContainer.innerHTML = `
+        <div class="error-state">
+          <div class="feature-icon mx-auto mb-3">⚠️</div>
+          <h3 class="h4">Something went wrong</h3>
+          <p class="footer-note mb-0">${escapeHtml(message)}</p>
+        </div>
+      `;
+    }
+
+    function renderNotices(notices) {
+      if (!Array.isArray(notices) || notices.length === 0) {
+        elements.noticeList.classList.add('d-none');
+        elements.noticeList.innerHTML = '';
+        return;
+      }
+
+      elements.noticeList.classList.remove('d-none');
+      elements.noticeList.innerHTML = notices.map((notice) => `
+        <div class="notice-card">${escapeHtml(notice)}</div>
+      `).join('');
+    }
+
+    function badgeClass(badge) {
+      const normalized = String(badge || '').toLowerCase();
+      if (normalized === 'lowest') return 'lowest';
+      if (normalized === 'live') return 'live';
+      return 'other';
+    }
+
+    function stockClass(stock) {
+      return stock ? 'in' : 'out';
+    }
+
+    function renderResults(results, product, notices = []) {
+      state.lastResults = results;
+      state.lastProduct = product;
+      renderNotices(notices);
+
+      if (!Array.isArray(results) || results.length === 0) {
+        elements.resultsMeta.textContent = `No results found for “${product}”.`;
+        elements.resultsContainer.innerHTML = `
+          <div class="empty-state">
+            <div class="feature-icon mx-auto mb-3">🔍</div>
+            <h3 class="h4">No matches found</h3>
+            <p class="footer-note mb-0">Try a broader search like “wireless earbuds” or “running shoes”.</p>
+          </div>
+        `;
+        return;
+      }
+
+      const lowest = results[0];
+      const liveCount = results.filter((item) => item.source === 'scraped').length;
+      elements.resultsMeta.textContent = `${results.length} offers found for “${product}”. Lowest current match: ${lowest.platform} at ${lowest.price}.`;
+      elements.availabilityMeta.textContent = liveCount > 0
+        ? `${liveCount} live refresh${liveCount > 1 ? 'es' : ''} + offline fallback active`
+        : 'Offline-ready dataset enabled';
+
+      elements.resultsContainer.innerHTML = `
+        <div class="results-grid">
+          ${results.map((item) => {
+            const reviews = Array.isArray(item.reviews) ? item.reviews.slice(0, 3) : [];
+            return `
+              <article class="result-card">
+                <img class="product-thumb" src="${escapeHtml(item.image)}" alt="${escapeHtml(product)} on ${escapeHtml(item.platform)}" loading="lazy">
+                <div class="result-body">
+                  <div class="platform-row">
+                    <div>
+                      <div class="platform-name">${escapeHtml(item.platform)}</div>
+                      <div class="domain-copy">${escapeHtml(item.domain || '')}</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2 justify-content-end">
+                      <span class="badge-pill ${badgeClass(item.badge)}">${escapeHtml(item.badge || 'POPULAR')}</span>
+                      <span class="source-pill ${escapeHtml(item.source || 'mock')}">${item.source === 'scraped' ? 'Live' : 'Mock'}</span>
+                    </div>
+                  </div>
+
+                  <div class="price-row">
+                    <div>
+                      <div class="price-hero">${escapeHtml(item.price)}</div>
+                      <div class="price-strike">${escapeHtml(item.original)}</div>
+                    </div>
+                    <div class="price-chip">${escapeHtml(item.discount)} OFF</div>
+                  </div>
+
+                  <div class="meta-grid">
+                    <div class="meta-cell"><span>Rating</span><strong>⭐ ${escapeHtml(item.rating)}</strong></div>
+                    <div class="meta-cell"><span>Delivery</span><strong>${escapeHtml(item.delivery || 'Check store')}</strong></div>
+                    <div class="meta-cell"><span>Seller</span><strong>${escapeHtml(item.seller || 'Marketplace seller')}</strong></div>
+                    <div class="meta-cell"><span>Availability</span><strong>${item.stock ? 'In stock' : 'Out of stock'}</strong></div>
+                  </div>
+
+                  <div>
+                    <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+                      <strong>Top reviews</strong>
+                      <span class="stock-pill ${stockClass(item.stock)}">${item.stock ? '🟢 In Stock' : '🔴 Out of Stock'}</span>
+                    </div>
+                    <ul class="review-list">
+                      ${reviews.map((review) => `<li>${escapeHtml(review)}</li>`).join('')}
+                    </ul>
+                  </div>
+
+                  <div class="mt-auto footer-row">
+                    <a class="buy-btn" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer">Buy now →</a>
+                  </div>
+                </div>
+              </article>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    async function compareProduct() {
+      const product = elements.productInput.value.trim();
+      const sort = elements.sortSelect.value;
+
+      if (product.length < 2) {
+        renderError('Please enter at least 2 characters before comparing prices.');
+        return;
+      }
+
+      renderLoading(product);
+
+      try {
+        const response = await fetch('/api/compare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ product, sort }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Unknown error from the comparison API.');
+        }
+
+        renderResults(data.results, data.product, data.notices || []);
+      } catch (error) {
+        renderError(error.message || 'Unable to fetch prices right now.');
+      }
+    }
+
+    async function loadSamples() {
+      try {
+        const response = await fetch('/api/products');
+        const data = await response.json();
+        if (!response.ok || !Array.isArray(data.products)) {
+          throw new Error('Failed to load product samples.');
+        }
+        elements.catalogCount.textContent = `${data.total}+`;
+        elements.sampleQueries.innerHTML = data.products.slice(0, 6).map((product) => `
+          <button class="sample-chip border-0" data-query="${escapeHtml(product)}">${escapeHtml(product)}</button>
+        `).join('');
+        state.samplesLoaded = true;
+      } catch (error) {
+        elements.catalogCount.textContent = '50+';
+      }
+    }
+
+    elements.searchButton.addEventListener('click', compareProduct);
+    elements.productInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') compareProduct();
+    });
+    elements.sortSelect.addEventListener('change', () => {
+      if (state.lastProduct) compareProduct();
+    });
+    elements.sampleQueries.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-query]');
+      if (!button) return;
+      elements.productInput.value = button.dataset.query;
+      compareProduct();
+    });
+
+    loadSamples();
+  </script>
+</body>
+</html>
