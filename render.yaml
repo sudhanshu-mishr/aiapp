@@ -9,3 +9,5 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.12
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
+    autoDeploy: true

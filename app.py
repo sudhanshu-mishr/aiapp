@@ -725,6 +725,47 @@ def generate_mock_catalog() -> dict[str, list[dict[str, Any]]]:
                 }
             )
         catalog[query_key] = sorted(entries, key=lambda item: item["price_value"])
+        for term in {seed["product"], *seed["keywords"]}:
+            query_key = slugify(term)
+            entries: list[dict[str, Any]] = []
+            for index, platform in enumerate(PLATFORMS):
+                rng = random.Random(f"{seed['product']}::{platform['name']}")
+                price_factor = (
+                    1 + platform_bias[platform["name"]] + rng.uniform(-0.04, 0.05)
+                )
+                price = max(149, int(seed["base_price"] * price_factor))
+                original = max(price + 100, int(price / (1 - rng.uniform(0.05, 0.28))))
+                rating = round(min(4.9, max(3.8, rng.uniform(4.0, 4.8))), 1)
+                reviews = deepcopy(seed["reviews"])
+                rng.shuffle(reviews)
+                entries.append(
+                    {
+                        "platform": platform["name"],
+                        "domain": platform["domain"],
+                        "price": format_inr(price),
+                        "price_value": price,
+                        "original": format_inr(original),
+                        "original_value": original,
+                        "discount": f"{round((1 - price / original) * 100)}%",
+                        "rating": rating,
+                        "reviews": reviews[:3],
+                        "url": platform["search_url"].format(
+                            query=quote_plus(seed["product"])
+                        ),
+                        "image": seed["image"],
+                        "stock": rng.random() > 0.12,
+                        "category": seed["category"],
+                        "badge": (
+                            "LOWEST"
+                            if index == 2
+                            else ("TRENDING" if index == 1 else "POPULAR")
+                        ),
+                        "delivery": f"{rng.randint(1, 4)}-{rng.randint(4, 8)} days",
+                        "seller": f"{platform['name']} Verified",
+                        "source": "mock",
+                    }
+                )
+            catalog[query_key] = sorted(entries, key=lambda item: item["price_value"])
     return catalog
 
 
@@ -804,6 +845,7 @@ def score_seed_match(product: str, seed: dict[str, Any]) -> float:
 
 
 def find_best_seed(product: str) -> Any:
+def find_best_seed(product: str) -> tuple[dict[str, Any] | None, float]:
     best_seed: dict[str, Any] | None = None
     best_score = 0.0
     for seed in CATALOG_SEEDS:
@@ -815,6 +857,9 @@ def find_best_seed(product: str) -> Any:
 
 
 def fallback_results(product: str) -> Any:
+def fallback_results(
+    product: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None, float]:
     seed, score = find_best_seed(product)
     if not seed or score < 0.72:
         return [], None, score
@@ -825,6 +870,33 @@ def fallback_results(product: str) -> Any:
         item["matchedProduct"] = seed["product"]
         item["source"] = "mock"
     return results, seed, score
+def fallback_results(product: str) -> list[dict[str, Any]]:
+    query = slugify(product)
+    if query in MOCK_CATALOG:
+        return deepcopy(MOCK_CATALOG[query])
+
+    search_terms = set(query.split("-"))
+    scored: list[tuple[int, str]] = []
+    for key in MOCK_CATALOG:
+        score = sum(1 for token in search_terms if token and token in key)
+        if score:
+            scored.append((score, key))
+
+    if scored:
+        best_key = max(scored, key=lambda item: (item[0], len(item[1])))[1]
+        results = deepcopy(MOCK_CATALOG[best_key])
+    else:
+        results = deepcopy(next(iter(MOCK_CATALOG.values())))
+        for item in results:
+            item["reviews"] = [
+                "Search adjusted to a comparable product.",
+                *item["reviews"][:2],
+            ]
+
+    for item in results:
+        item["queryMatched"] = product
+        item["source"] = "mock"
+    return results
 
 
 HEADERS = {
@@ -922,6 +994,7 @@ def title_matches_query(query: str, title: str) -> bool:
 def scrape_platform(
     platform: dict[str, Any], product: str, fallback_image: str
 ) -> dict[str, Any] | None:
+def scrape_platform(platform: dict[str, Any], product: str) -> dict[str, Any] | None:
     selectors = SCRAPE_SELECTORS.get(platform["name"])
     if not selectors:
         return None
@@ -966,6 +1039,7 @@ def scrape_platform(
             ],
             "url": link,
             "image": fallback_image,
+            "image": fallback_results(product)[0]["image"],
             "stock": True,
             "category": "Live result",
             "badge": "LIVE",
@@ -978,6 +1052,9 @@ def scrape_platform(
 
 
 def compare_product(product: str, sort_by: str = "price_asc") -> Any:
+def compare_product(
+    product: str, sort_by: str = "price_asc"
+) -> tuple[list[dict[str, Any]], list[str], str | None, float]:
     base_results, matched_seed, confidence = fallback_results(product)
     notices: list[str] = []
     if not matched_seed:
@@ -998,6 +1075,16 @@ def compare_product(product: str, sort_by: str = "price_asc") -> Any:
                 notices.append(
                     f"{platform['name']} did not return a confident match for the exact requested product, so curated pricing is shown."
                 )
+) -> tuple[list[dict[str, Any]], list[str]]:
+    base_results = fallback_results(product)
+    notices: list[str] = []
+
+    for idx, platform in enumerate(PLATFORMS):
+        try:
+            scraped = scrape_platform(platform, product)
+            if scraped:
+                base_results[idx] = scraped
+                notices.append(f"Live price refreshed for {platform['name']}.")
         except Exception:
             notices.append(
                 f"{platform['name']} live scrape unavailable, showing curated mock data."
@@ -1013,6 +1100,7 @@ def compare_product(product: str, sort_by: str = "price_asc") -> Any:
             if item["price_value"] == lowest:
                 item["badge"] = "LOWEST"
     return base_results, notices, matched_seed["product"], confidence
+    return base_results, notices
 
 
 @app.get("/")
@@ -1024,6 +1112,7 @@ def index() -> Any:
 def api_products() -> Any:
     samples = [seed["product"] for seed in CATALOG_SEEDS[:12]]
     return jsonify({"products": samples, "total": len(CATALOG_SEEDS)})
+    return jsonify({"products": samples, "total": len(MOCK_CATALOG)})
 
 
 @app.post("/api/compare")
@@ -1044,6 +1133,10 @@ def api_compare() -> Any:
             "product": product,
             "matchedProduct": matched_product,
             "matchConfidence": confidence,
+    results, notices = compare_product(product, sort_by)
+    return jsonify(
+        {
+            "product": product,
             "sort": sort_by,
             "count": len(results),
             "results": results,
