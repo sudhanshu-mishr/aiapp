@@ -5,6 +5,7 @@ import os
 import random
 import re
 from copy import deepcopy
+from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote_plus
@@ -683,6 +684,47 @@ def generate_mock_catalog() -> dict[str, list[dict[str, Any]]]:
     platform_bias = {"Amazon": 0.03, "Flipkart": -0.02, "Meesho": -0.06, "Myntra": 0.01}
 
     for seed in CATALOG_SEEDS:
+        query_key = slugify(seed["product"])
+        entries: list[dict[str, Any]] = []
+        for index, platform in enumerate(PLATFORMS):
+            rng = random.Random(f"{seed['product']}::{platform['name']}")
+            price_factor = (
+                1 + platform_bias[platform["name"]] + rng.uniform(-0.04, 0.05)
+            )
+            price = max(149, int(seed["base_price"] * price_factor))
+            original = max(price + 100, int(price / (1 - rng.uniform(0.05, 0.28))))
+            rating = round(min(4.9, max(3.8, rng.uniform(4.0, 4.8))), 1)
+            reviews = deepcopy(seed["reviews"])
+            rng.shuffle(reviews)
+            entries.append(
+                {
+                    "platform": platform["name"],
+                    "domain": platform["domain"],
+                    "price": format_inr(price),
+                    "price_value": price,
+                    "original": format_inr(original),
+                    "original_value": original,
+                    "discount": f"{round((1 - price / original) * 100)}%",
+                    "rating": rating,
+                    "reviews": reviews[:3],
+                    "url": platform["search_url"].format(
+                        query=quote_plus(seed["product"])
+                    ),
+                    "image": seed["image"],
+                    "stock": rng.random() > 0.12,
+                    "category": seed["category"],
+                    "badge": (
+                        "LOWEST"
+                        if index == 2
+                        else ("TRENDING" if index == 1 else "POPULAR")
+                    ),
+                    "delivery": f"{rng.randint(1, 4)}-{rng.randint(4, 8)} days",
+                    "seller": f"{platform['name']} Verified",
+                    "source": "mock",
+                    "matchedProduct": seed["product"],
+                }
+            )
+        catalog[query_key] = sorted(entries, key=lambda item: item["price_value"])
         for term in {seed["product"], *seed["keywords"]}:
             query_key = slugify(term)
             entries: list[dict[str, Any]] = []
@@ -730,6 +772,102 @@ def generate_mock_catalog() -> dict[str, list[dict[str, Any]]]:
 MOCK_CATALOG = generate_mock_catalog()
 
 
+STOPWORDS = {"for", "with", "and", "the", "a", "an", "buy", "latest", "best", "new"}
+ACCESSORY_TERMS = {
+    "case",
+    "cover",
+    "charger",
+    "cable",
+    "protector",
+    "glass",
+    "strap",
+    "skin",
+    "adapter",
+    "back",
+}
+
+
+def tokenize(value: str) -> list[str]:
+    return [
+        token
+        for token in re.findall(r"[a-z0-9]+", value.lower())
+        if token and token not in STOPWORDS
+    ]
+
+
+def numeric_tokens(tokens: list[str]) -> set[str]:
+    return {token for token in tokens if any(char.isdigit() for char in token)}
+
+
+def accessory_query(tokens: list[str]) -> bool:
+    return any(token in ACCESSORY_TERMS for token in tokens)
+
+
+def seed_terms(seed: dict[str, Any]) -> set[str]:
+    return {
+        slugify(term).replace("-", " ") for term in [seed["product"], *seed["keywords"]]
+    }
+
+
+def score_seed_match(product: str, seed: dict[str, Any]) -> float:
+    query_norm = slugify(product).replace("-", " ")
+    query_tokens = tokenize(product)
+    if not query_tokens:
+        return 0.0
+
+    aliases = seed_terms(seed)
+    if query_norm in aliases:
+        return 1.0
+
+    seed_product_tokens = tokenize(seed["product"])
+    seed_keyword_tokens = {token for term in aliases for token in term.split()}
+    overlap = len(set(query_tokens) & seed_keyword_tokens)
+    overlap_ratio = overlap / max(len(set(query_tokens)), 1)
+    sequence_ratio = max(
+        SequenceMatcher(None, query_norm, alias).ratio() for alias in aliases
+    )
+
+    query_numbers = numeric_tokens(query_tokens)
+    seed_numbers = numeric_tokens(list(seed_keyword_tokens))
+    if query_numbers and not query_numbers.issubset(seed_numbers):
+        return 0.0
+
+    if accessory_query(query_tokens) and not accessory_query(seed_product_tokens):
+        return 0.0
+
+    brand_match = (
+        0.2 if query_tokens and query_tokens[0] in seed_keyword_tokens else 0.0
+    )
+    token_bonus = 0.2 if set(query_tokens).issubset(seed_keyword_tokens) else 0.0
+    return round(
+        (overlap_ratio * 0.55) + (sequence_ratio * 0.25) + brand_match + token_bonus, 4
+    )
+
+
+def find_best_seed(product: str) -> tuple[dict[str, Any] | None, float]:
+    best_seed: dict[str, Any] | None = None
+    best_score = 0.0
+    for seed in CATALOG_SEEDS:
+        score = score_seed_match(product, seed)
+        if score > best_score:
+            best_seed = seed
+            best_score = score
+    return best_seed, best_score
+
+
+def fallback_results(
+    product: str,
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None, float]:
+    seed, score = find_best_seed(product)
+    if not seed or score < 0.72:
+        return [], None, score
+
+    results = deepcopy(MOCK_CATALOG[slugify(seed["product"])])
+    for item in results:
+        item["queryMatched"] = product
+        item["matchedProduct"] = seed["product"]
+        item["source"] = "mock"
+    return results, seed, score
 def fallback_results(product: str) -> list[dict[str, Any]]:
     query = slugify(product)
     if query in MOCK_CATALOG:
@@ -830,6 +968,30 @@ def first_link(node: BeautifulSoup, selectors: list[str], base_url: str) -> str 
     return None
 
 
+def title_matches_query(query: str, title: str) -> bool:
+    query_tokens = tokenize(query)
+    title_tokens = set(tokenize(title))
+    if not query_tokens or not title_tokens:
+        return False
+
+    query_numbers = numeric_tokens(query_tokens)
+    if query_numbers and not query_numbers.issubset(title_tokens):
+        return False
+
+    if accessory_query(query_tokens) != accessory_query(list(title_tokens)):
+        return False
+
+    overlap = len(set(query_tokens) & title_tokens)
+    overlap_ratio = overlap / max(len(set(query_tokens)), 1)
+    phrase_ratio = SequenceMatcher(
+        None, slugify(query).replace("-", " "), slugify(title).replace("-", " ")
+    ).ratio()
+    return overlap_ratio >= 0.65 or (overlap_ratio >= 0.5 and phrase_ratio >= 0.7)
+
+
+def scrape_platform(
+    platform: dict[str, Any], product: str, fallback_image: str
+) -> dict[str, Any] | None:
 def scrape_platform(platform: dict[str, Any], product: str) -> dict[str, Any] | None:
     selectors = SCRAPE_SELECTORS.get(platform["name"])
     if not selectors:
@@ -854,6 +1016,8 @@ def scrape_platform(platform: dict[str, Any], product: str) -> dict[str, Any] | 
         link = first_link(card, selectors["link"], base_url)
         if not title or not price_value or not link:
             continue
+        if not title_matches_query(product, title):
+            continue
 
         rating_seed = random.Random(f"scrape::{platform['name']}::{title}")
         original_value = int(price_value / (1 - rating_seed.uniform(0.05, 0.2)))
@@ -872,6 +1036,7 @@ def scrape_platform(platform: dict[str, Any], product: str) -> dict[str, Any] | 
                 "Use the Buy Now link to verify latest seller details.",
             ],
             "url": link,
+            "image": fallback_image,
             "image": fallback_results(product)[0]["image"],
             "stock": True,
             "category": "Live result",
@@ -886,6 +1051,27 @@ def scrape_platform(platform: dict[str, Any], product: str) -> dict[str, Any] | 
 
 def compare_product(
     product: str, sort_by: str = "price_asc"
+) -> tuple[list[dict[str, Any]], list[str], str | None, float]:
+    base_results, matched_seed, confidence = fallback_results(product)
+    notices: list[str] = []
+    if not matched_seed:
+        notices.append(
+            "No confident product match was found in the offline catalog. Please refine the model name, capacity, size, or variant."
+        )
+        return [], notices, None, confidence
+
+    fallback_image = matched_seed["image"]
+
+    for idx, platform in enumerate(PLATFORMS):
+        try:
+            scraped = scrape_platform(platform, product, fallback_image)
+            if scraped:
+                base_results[idx] = scraped
+                notices.append(f"Live price refreshed for {platform['name']}.")
+            else:
+                notices.append(
+                    f"{platform['name']} did not return a confident match for the exact requested product, so curated pricing is shown."
+                )
 ) -> tuple[list[dict[str, Any]], list[str]]:
     base_results = fallback_results(product)
     notices: list[str] = []
@@ -910,6 +1096,7 @@ def compare_product(
         for item in base_results:
             if item["price_value"] == lowest:
                 item["badge"] = "LOWEST"
+    return base_results, notices, matched_seed["product"], confidence
     return base_results, notices
 
 
@@ -921,6 +1108,7 @@ def index() -> Any:
 @app.get("/api/products")
 def api_products() -> Any:
     samples = [seed["product"] for seed in CATALOG_SEEDS[:12]]
+    return jsonify({"products": samples, "total": len(CATALOG_SEEDS)})
     return jsonify({"products": samples, "total": len(MOCK_CATALOG)})
 
 
@@ -936,6 +1124,12 @@ def api_compare() -> Any:
             400,
         )
 
+    results, notices, matched_product, confidence = compare_product(product, sort_by)
+    return jsonify(
+        {
+            "product": product,
+            "matchedProduct": matched_product,
+            "matchConfidence": confidence,
     results, notices = compare_product(product, sort_by)
     return jsonify(
         {

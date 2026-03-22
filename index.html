@@ -676,12 +676,19 @@
       return stock ? 'in' : 'out';
     }
 
+    function renderResults(results, product, notices = [], matchedProduct = null, matchConfidence = 0) {
     function renderResults(results, product, notices = []) {
       state.lastResults = results;
       state.lastProduct = product;
       renderNotices(notices);
 
       if (!Array.isArray(results) || results.length === 0) {
+        elements.resultsMeta.textContent = `No exact product matches found for “${product}”.`;
+        elements.resultsContainer.innerHTML = `
+          <div class="empty-state">
+            <div class="feature-icon mx-auto mb-3">🔍</div>
+            <h3 class="h4">No confident exact match found</h3>
+            <p class="footer-note mb-0">Try the full product name, model number, storage size, or variant so PricePulse can match the exact item.</p>
         elements.resultsMeta.textContent = `No results found for “${product}”.`;
         elements.resultsContainer.innerHTML = `
           <div class="empty-state">
@@ -695,6 +702,13 @@
 
       const lowest = results[0];
       const liveCount = results.filter((item) => item.source === 'scraped').length;
+      const matchedLine = matchedProduct && matchedProduct !== product
+        ? ` Matched catalog product: ${matchedProduct}.`
+        : '';
+      const confidenceLine = matchConfidence
+        ? ` Confidence: ${(matchConfidence * 100).toFixed(0)}%.`
+        : '';
+      elements.resultsMeta.textContent = `${results.length} offers found for “${product}”. Lowest current match: ${lowest.platform} at ${lowest.price}.${matchedLine}${confidenceLine}`;
       elements.resultsMeta.textContent = `${results.length} offers found for “${product}”. Lowest current match: ${lowest.platform} at ${lowest.price}.`;
       elements.availabilityMeta.textContent = liveCount > 0
         ? `${liveCount} live refresh${liveCount > 1 ? 'es' : ''} + offline fallback active`
@@ -778,6 +792,13 @@
           throw new Error(data.error || 'Unknown error from the comparison API.');
         }
 
+        renderResults(
+          data.results,
+          data.product,
+          data.notices || [],
+          data.matchedProduct || null,
+          data.matchConfidence || 0,
+        );
         renderResults(data.results, data.product, data.notices || []);
       } catch (error) {
         renderError(error.message || 'Unable to fetch prices right now.');
