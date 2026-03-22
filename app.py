@@ -844,6 +844,7 @@ def score_seed_match(product: str, seed: dict[str, Any]) -> float:
     )
 
 
+def find_best_seed(product: str) -> Any:
 def find_best_seed(product: str) -> tuple[dict[str, Any] | None, float]:
     best_seed: dict[str, Any] | None = None
     best_score = 0.0
@@ -855,6 +856,7 @@ def find_best_seed(product: str) -> tuple[dict[str, Any] | None, float]:
     return best_seed, best_score
 
 
+def fallback_results(product: str) -> Any:
 def fallback_results(
     product: str,
 ) -> tuple[list[dict[str, Any]], dict[str, Any] | None, float]:
@@ -1049,6 +1051,7 @@ def scrape_platform(platform: dict[str, Any], product: str) -> dict[str, Any] | 
     return None
 
 
+def compare_product(product: str, sort_by: str = "price_asc") -> Any:
 def compare_product(
     product: str, sort_by: str = "price_asc"
 ) -> tuple[list[dict[str, Any]], list[str], str | None, float]:
