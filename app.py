@@ -994,7 +994,7 @@ def title_matches_query(query: str, title: str) -> bool:
 def scrape_platform(
     platform: dict[str, Any], product: str, fallback_image: str
 ) -> dict[str, Any] | None:
-def scrape_platform(platform: dict[str, Any], product: str) -> dict[str, Any] | None:
+ def scrape_platform(platform: dict[str, Any], product: str) -> dict[str, Any] | None:
     selectors = SCRAPE_SELECTORS.get(platform["name"])
     if not selectors:
         return None
